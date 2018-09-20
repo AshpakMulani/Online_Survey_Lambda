@@ -1,7 +1,6 @@
 import boto3
 from botocore.exceptions import ClientError
 
-
 def lambda_handler(event, context):
     '''
     DOCSTRING:  This function is responsible for retrieving callers last recorded feedback using contact number from Dynamo DB.

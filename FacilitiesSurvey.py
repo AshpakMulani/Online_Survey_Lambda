@@ -7,8 +7,8 @@ def lambda_handler(event, context):
                 questions in Dynamo DB. FacilitiesSurvey-Question5 contact flow triggers this function at the end
                 of process after collecting caller's input for all survey questions.
 
-    input:       default lambda_handler input.
-                event Dict gets ContactData Attributes from contact flow. We are keeping generic names for customerfeedback<n>
+    input:      default lambda_handler input.
+                event Dict gets ContactData Attributes from contact flow. Using generic names for customerfeedback<n>
                 variables to avoid renaming in case same survey gets used for some other purpose.
                 customerfeedback1 = CanteenFeedback, customerfeedback2 = CleaningFeedback , customerfeedback3 = GardeningFeedback,
                 customerfeedback4 = SecurityFeedback , customerfeedback5 = TransportFeedback

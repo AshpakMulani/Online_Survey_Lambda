@@ -3,7 +3,7 @@
 Stack JSON template creates below resources.
   >Used custom resource concept backed by inline lambda code for S3 upload from GitHub.
   
-  >Custom resource can used to create lex bot and add required utterances by survey. (not implemented in this version)
+  >Custom resource can be used to create lex bot and add required utterances by survey. (not implemented in this version)
 - Create S3 bucket to store lambda function source code.
 -	Download lambda function source code from GitHub, Create .zip file and upload .zip to S3 bucket.
 -	Create Role for lambda functions to provide full read-write access on Survey data DynamoDB table.

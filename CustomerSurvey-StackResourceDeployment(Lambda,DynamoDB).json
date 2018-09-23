@@ -1,0 +1,312 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Create DynamoDB Table and three Lambda Functions (using GitHub refrence) for Amazon Connect instance.",
+  "Metadata": {},
+  "Parameters": {
+    "S3BucketName": {
+      "Description": "Enter bucket name (all lower case) where lambda zip to be stored from GitHub",
+      "Type": "String"
+    }
+  },
+  "Mappings": {},
+  "Conditions": {},
+  "Resources": {
+    "mybucketforcloudformationlambda": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "BucketName": {
+          "Ref": "S3BucketName"
+        },
+        "AccessControl": "PublicRead"
+      }
+    },
+    "S3Copy": {
+      "Type": "Custom::CopyToS3",
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CopyFilesToS3",
+            "Arn"
+          ]
+        },
+        "S3BucketName": {
+          "Ref": "mybucketforcloudformationlambda"
+        },
+        "Urls": [
+          "https://raw.githubusercontent.com/AshpakMulani/Online_Survey_Lambda/master/FacilitiesSurvey.py",
+          "https://raw.githubusercontent.com/AshpakMulani/Online_Survey_Lambda/master/GetOldSurveyResponse.py",
+          "https://raw.githubusercontent.com/AshpakMulani/Online_Survey_Lambda/master/GetSurveyData.py"
+        ]
+      }
+    },
+    "CopyFilesToS3": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Handler": "index.lambda_handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "LambdaExecutionRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "ZipFile": {
+            "Fn::Join": [
+              "\n",
+              [
+                "# This Code is for uploading lambda code files from online source like Github.",
+                "# Script uploads given list of files under lambdacode.zip file on S3",
+                "",
+                "import os",
+                "import urllib.request",
+                "from urllib.parse import urlparse",
+                "import boto3",
+                "import cfnresponse",
+                "import zipfile",
+                "",
+                "print('Loading inline lambda function')",
+                "",
+                "s3 = boto3.resource('s3')",
+                "finalziplist=[]",
+                "",
+                "def Get_local_copy(url):",
+                "    # This function download file from give URL to local machine.",
+                "    urlPath = urlparse(url).path",
+                "    fileName = os.path.basename(urlPath)",
+                "    filePath = '/tmp/' + fileName",
+                "    urllib.request.urlretrieve(url, filePath)",
+                "    return filePath",
+                "",
+                "",
+                "def upload_to_s3(filePath, bucket):",
+                "    # This function upload final zip to s3 bucket",
+                "    fileName = os.path.basename(filePath)",
+                "    s3.Object(bucket, fileName).put(Body=open(filePath, 'rb'))",
+                "",
+                "",
+                "def send_to_zip(url):",
+                "    # This function prepare list of local files dowloaded from URL for zip file. ",
+                "    filePath = Get_local_copy(url)",
+                "    finalziplist.append(filePath)",
+                "",
+                "",
+                "def lambda_handler(event, context):",
+                "     # Below condition runs our code only during cloud creation event.",
+                "    if event['RequestType'] == 'Create':",
+                "        # get the properties set in the CloudFormation resource",
+                "        urls = event['ResourceProperties']['Urls']",
+                "        bucket = event['ResourceProperties']['S3BucketName']",
+                "",
+                "        try:",
+                "            print('Creating : ' + str(event['RequestType']) + '  ' + str(bucket))",
+                "            # Zip creation logic  ",
+                "            for url in urls:",
+                "                send_to_zip(url)",
+                "            with zipfile.ZipFile('/tmp/lambdacode.zip', 'w') as myzip:",
+                "                for f in finalziplist:",
+                "                    myzip.write(f, os.path.basename(f))",
+                "            upload_to_s3('/tmp/lambdacode.zip', bucket)",
+                "            # Notify cloud formaiton about success of custome resource lambda function  ",
+                "            cfnresponse.send(event, context, cfnresponse.SUCCESS, {'Response': 'Success'})",
+                "            return",
+                "        except Exception as e:",
+                "            # Send Error details to Cloud Watch log.  ",
+                "            print(e)",
+                "            # Notify cloud formaiton about failure of custome resource lambda function  ",
+                "            cfnresponse.send(event, context, cfnresponse.FAILED, {'Response': 'Failure'})",
+                "            return",
+                "",
+                "",
+                "    cfnresponse.send(event, context, cfnresponse.SUCCESS, {'Response': 'Success'})"
+              ]
+            ]
+          }
+        },
+        "Runtime": "python3.6"
+      }
+    },
+    "LambdaExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Path": "/",
+        "Policies": [
+          {
+            "PolicyName": "root",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:*"
+                  ],
+                  "Resource": "arn:aws:logs:*:*:*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:PutObject"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "FacilitiesSurveyData": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "contactnumber",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "contactnumber",
+            "KeyType": "HASH"
+          }
+        ],
+        "TableName": "FacilitiesSurveyData",
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": "5",
+          "WriteCapacityUnits": "5"
+        }
+      }
+    },
+    "RoleDynamoDBSurveyTableAccessforLambda": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "RolePolicies": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": "LambdaDynamoDBSurveyTableFullAccess",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "dynamodb:*",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "FacilitiesSurveyData",
+                  "Arn"
+                ]
+              }
+            }
+          ]
+        },
+        "Roles": [
+          {
+            "Ref": "RoleDynamoDBSurveyTableAccessforLambda"
+          }
+        ]
+      }
+    },
+    "FacilitiesSurveyLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Handler": "FacilitiesSurvey.lambda_handler",
+        "FunctionName": "FacilitiesSurvey",
+        "Role": {
+          "Fn::GetAtt": [
+            "RoleDynamoDBSurveyTableAccessforLambda",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Ref": "S3BucketName"
+          },
+          "S3Key": "lambdacode.zip"
+        },
+        "Runtime": "python3.6",
+        "Timeout": 25
+      },
+      "DependsOn": "S3Copy"
+    },
+    "GetOldSurveyResponseLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Handler": "GetOldSurveyResponse.lambda_handler",
+        "FunctionName": "GetOldSurveyResponse",
+        "Role": {
+          "Fn::GetAtt": [
+            "RoleDynamoDBSurveyTableAccessforLambda",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Ref": "S3BucketName"
+          },
+          "S3Key": "lambdacode.zip"
+        },
+        "Runtime": "python3.6",
+        "Timeout": 25
+      },
+      "DependsOn": "S3Copy"
+    },
+    "GetSurveyDataLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Handler": "GetSurveyData.lambda_handler",
+        "FunctionName": "GetSurveyData",
+        "Role": {
+          "Fn::GetAtt": [
+            "RoleDynamoDBSurveyTableAccessforLambda",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Ref": "S3BucketName"
+          },
+          "S3Key": "lambdacode.zip"
+        },
+        "Runtime": "python3.6",
+        "Timeout": 25
+      },
+      "DependsOn": "S3Copy"
+    }
+  },
+  "Outputs": {}
+}

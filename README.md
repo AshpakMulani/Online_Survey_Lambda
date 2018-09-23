@@ -1,12 +1,12 @@
 ### CustomerSurvey-StackResourceDeployment(Lambda,DynamoDB).json : 
 
-Stack JSON templete creates below resources.
+Stack JSON template creates below resources.
   >Used custom resource concept backed by inline lambda code for S3 upload from GitHub.
   
-  >Custom recource can also used to create lex bot and add required utterences by survey. (not added in this version)
+  >Custom resource can also used to create lex bot and add required utterances by survey. (not implemented in this version)
 - Create S3 bucket to store lambda function source code.
 -	Download lambda function source code from GitHub, Create .zip file and upload .zip to S3 bucket.
--	Create Role for lambda functions to provide full read-write access to Survey data DynamoDB table.
+-	Create Role for lambda functions to provide full read-write access on Survey data DynamoDB table.
 -	Create lambda execution role for CloudWatch log access.
 -	Create three lambda functions referenced in Amazon connect call flows (GetSurveyData, GetOldSurveyResponse, FacilitiesSurvey)
 -	Create DynamoDB table to store customer survey response with partition key as contact number.
